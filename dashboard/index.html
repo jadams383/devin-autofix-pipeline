@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Devin Autofix Pipeline</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --border: #e4e6eb;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --green: #10b981;
+      --red: #ef4444;
+      --purple: #8b5cf6;
+      --amber: #f59e0b;
+      --gray: #9ca3af;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 28px;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .trigger-form {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .trigger-form input {
+      flex: 0 0 200px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .trigger-form button {
+      padding: 8px 16px;
+      background: var(--accent);
+      color: white;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+    }
+    .trigger-form button:hover { background: #1d4fd8; }
+    .trigger-status { font-size: 13px; color: var(--muted); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .stat .label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stat .value {
+      font-size: 24px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .stat.green .value { color: var(--green); }
+    .stat.red .value { color: var(--red); }
+    .stat.purple .value { color: var(--purple); }
+    .stat.amber .value { color: var(--amber); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th {
+      background: #fafbfc;
+      color: var(--muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+    }
+    tr:last-child td { border-bottom: 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .empty {
+      padding: 40px;
+      text-align: center;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      margin-top: 4px;
+      letter-spacing: 0.02em;
+    }
+    .badge.success { background: var(--green); }
+    .badge.failed { background: var(--red); }
+    .badge.dispatched { background: var(--purple); }
+    .badge.working { background: var(--purple); }
+    .badge.finished { background: var(--green); }
+    .badge.blocked { background: var(--amber); }
+    .badge.expired { background: var(--red); }
+    .badge.APPROVED { background: var(--green); }
+    .badge.CHANGES_REQUESTED { background: var(--amber); }
+    .badge.NEEDS_HUMAN { background: var(--gray); }
+    .badge.UNKNOWN { background: var(--gray); }
+    .badge.unknown { background: var(--gray); }
+
+    .scan-banner {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .trigger-form button.scan-btn { background: #475569; }
+    .trigger-form button.scan-btn:hover { background: #334155; }
+    .trigger-form button.schedule-btn { background: #16a34a; }
+    .trigger-form button.schedule-btn:hover { background: #15803d; }
+    .fade-out { transition: opacity 0.6s ease; opacity: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Devin Autofix Pipeline</h1>
+    <div class="subtitle" id="subtitle">Loading… (auto-refreshes every 20s)</div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <form class="trigger-form" id="triggerForm" onsubmit="return false;">
+        <input type="number" id="issueNumber" placeholder="Issue number" min="1" />
+        <button type="button" id="triggerBtn">Trigger</button>
+        <button type="button" id="scanBtn" class="scan-btn">Run Scanner</button>
+        <button type="button" id="scheduleBtn" class="schedule-btn">Register Schedule</button>
+        <span class="trigger-status" id="triggerStatus"></span>
+      </form>
+    </div>
+
+    <div class="scan-banner">
+      🕐 Autonomous scanner: runs daily Mon-Fri at 9am UTC via Devin Scheduler
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">Total Runs</div><div class="value" id="statTotal">0</div></div>
+      <div class="stat green"><div class="label">Fixes Opened</div><div class="value" id="statFixed">0</div></div>
+      <div class="stat red"><div class="label">Failed</div><div class="value" id="statFailed">0</div></div>
+      <div class="stat purple"><div class="label">In Progress</div><div class="value" id="statInProgress">0</div></div>
+      <div class="stat amber"><div class="label">Approved by Reviewer</div><div class="value" id="statApproved">0</div></div>
+    </div>
+
+    <div id="tableContainer"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function truncate(s, n) {
+      s = s || "";
+      return s.length > n ? s.slice(0, n) + "…" : s;
+    }
+
+    function fmtMTTR(start, end) {
+      if (!start || !end) return "—";
+      const s = new Date(start.replace(" ", "T") + "Z").getTime();
+      const e = new Date(end.replace(" ", "T") + "Z").getTime();
+      if (isNaN(s) || isNaN(e) || e < s) return "—";
+      const diffMin = Math.round((e - s) / 60000);
+      if (diffMin < 60) return diffMin + "m";
+      const h = Math.floor(diffMin / 60);
+      const m = diffMin % 60;
+      return h + "h " + m + "m";
+    }
+
+    function badge(text, cls) {
+      if (!text) return "";
+      return `<span class="badge ${cls || text}">${escapeHtml(text)}</span>`;
+    }
+
+    function renderRows(runs) {
+      if (!runs || runs.length === 0) {
+        return `<div class="empty">No pipeline runs yet. Trigger one above or apply the <code>autofix</code> label to a GitHub issue.</div>`;
+      }
+      const rows = runs.map((r) => {
+        const issueCell = r.issue_url
+          ? `<a href="${escapeHtml(r.issue_url)}" target="_blank" rel="noopener">#${r.issue_number}</a> ${escapeHtml(truncate(r.issue_title, 48))}`
+          : `#${r.issue_number} ${escapeHtml(truncate(r.issue_title, 48))}`;
+        const triggerCell = `<span class="muted">${escapeHtml(r.trigger_type || "manual")}</span>`;
+        const fixerLink = r.fixer_session_url
+          ? `<a href="${escapeHtml(r.fixer_session_url)}" target="_blank" rel="noopener">Fixer ↗</a>`
+          : "";
+        const retryLink = r.retry_fixer_session_url
+          ? `<a href="${escapeHtml(r.retry_fixer_session_url)}" target="_blank" rel="noopener">Retry ↗</a>`
+          : "";
+        const fixerCell = r.fixer_session_url
+          ? `${fixerLink}${retryLink ? "<br>" + retryLink : ""}<br>${badge(r.fixer_status, r.fixer_status)}`
+          : "—";
+        const prCell = r.pr_url
+          ? `<a href="${escapeHtml(r.pr_url)}" target="_blank" rel="noopener">PR ↗</a>`
+          : "—";
+        const reviewerCell = r.reviewer_session_url
+          ? `<a href="${escapeHtml(r.reviewer_session_url)}" target="_blank" rel="noopener">Session ↗</a><br>${badge(r.reviewer_status, r.reviewer_status)}`
+          : "—";
+        const verdictCell = r.reviewer_verdict
+          ? badge(r.reviewer_verdict, r.reviewer_verdict)
+          : "—";
+        const mttrCell = fmtMTTR(r.dispatched_at, r.reviewed_at);
+        return `<tr>
+          <td>${issueCell}</td>
+          <td>${triggerCell}</td>
+          <td>${fixerCell}</td>
+          <td>${prCell}</td>
+          <td>${reviewerCell}</td>
+          <td>${verdictCell}</td>
+          <td>${mttrCell}</td>
+        </tr>`;
+      }).join("");
+      return `<table>
+        <thead><tr>
+          <th>Issue</th><th>Trigger</th><th>Fixer Session</th><th>PR</th>
+          <th>Reviewer Session</th><th>Verdict</th><th>MTTR</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function renderStats(runs) {
+      const total = runs.length;
+      const fixed = runs.filter((r) => r.fixer_status === "success" || r.pr_url).length;
+      const failed = runs.filter((r) => r.fixer_status === "failed").length;
+      const inProgress = runs.filter((r) => !r.reviewer_status && r.fixer_status !== "failed").length;
+      const approved = runs.filter((r) => r.reviewer_verdict === "APPROVED").length;
+      $("statTotal").textContent = total;
+      $("statFixed").textContent = fixed;
+      $("statFailed").textContent = failed;
+      $("statInProgress").textContent = inProgress;
+      $("statApproved").textContent = approved;
+    }
+
+    async function loadRuns() {
+      try {
+        const resp = await fetch("/api/runs");
+        const data = await resp.json();
+        const runs = Array.isArray(data) ? data : [];
+        renderStats(runs);
+        $("tableContainer").innerHTML = renderRows(runs);
+        $("subtitle").textContent =
+          `Last refreshed ${new Date().toLocaleTimeString()} · auto-refreshes every 20s`;
+      } catch (err) {
+        $("subtitle").textContent = `Error loading runs: ${err} · auto-refreshes every 20s`;
+      }
+    }
+
+    async function triggerRun() {
+      const input = $("issueNumber");
+      const status = $("triggerStatus");
+      const val = (input.value || "").trim();
+      if (!val) {
+        status.textContent = "Enter an issue number first.";
+        return;
+      }
+      status.textContent = `Dispatching #${val}…`;
+      try {
+        const resp = await fetch(`/trigger/${encodeURIComponent(val)}`, { method: "POST" });
+        const data = await resp.json();
+        status.textContent = `Dispatched #${data.issue_number || val}`;
+        setTimeout(loadRuns, 1000);
+      } catch (err) {
+        status.textContent = `Error: ${err}`;
+      }
+    }
+
+    function showFlash(text, fadeMs) {
+      const status = $("triggerStatus");
+      status.classList.remove("fade-out");
+      status.textContent = text;
+      if (fadeMs) {
+        setTimeout(() => status.classList.add("fade-out"), fadeMs);
+      }
+    }
+
+    async function runScan() {
+      showFlash("Scan starting…");
+      try {
+        const resp = await fetch("/scan", { method: "POST" });
+        const data = await resp.json();
+        showFlash(`Scan started: ${data.status || "ok"}`, 3000);
+      } catch (err) {
+        showFlash(`Scan error: ${err}`);
+      }
+    }
+
+    async function registerSchedule() {
+      showFlash("Registering schedule…");
+      try {
+        const resp = await fetch("/schedule", { method: "POST" });
+        const data = await resp.json();
+        const id = data.id || data.schedule_id || data.error || "registered";
+        showFlash(`Schedule: ${id}`, 5000);
+      } catch (err) {
+        showFlash(`Schedule error: ${err}`);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      $("triggerBtn").addEventListener("click", triggerRun);
+      $("scanBtn").addEventListener("click", runScan);
+      $("scheduleBtn").addEventListener("click", registerSchedule);
+      loadRuns();
+      setInterval(loadRuns, 20000);
+    });
+  </script>
+</body>
+</html>
